@@ -1,0 +1,186 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jan 16 12:17:23 2023
+
+@author: dariuss
+"""
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import r2_score
+from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import ElasticNet
+
+
+def Haina(tip):
+    if (tip.categoriehaina==1):
+        return "trousers"
+    elif tip.categoriehaina==2:
+        return "skirts"
+    elif tip.categoriehaina==3:
+        return "blouses"
+    else:
+        return "sale"
+    
+def continent(con):
+    if ((con.country==6) or (con.country==26) or (con.country==43) or con.country==43 or con.country==44 or con.country==45 or con.country==46
+    or con.country==47 or (con.country==1)):
+        return "Altele"
+    else:
+        return "Europa"
+    
+def ziachizitie(zi):
+    if zi.day<15:
+        return "prima jum"
+    else:
+        return "a doua jum"
+    
+    
+url="C:\\Users\\darius\\Downloads\\Clickstream Data for Online Shopping (1)\\e-shop clothing 2008.csv"
+df=pd.read_csv(url,delimiter=";")
+#print(df)
+
+#The dataset contains information on clickstream from online store offering clothing for pregnant women. Data are from five months of 2008 and include, among others, product category, location of the photo on the page, country of origin of the IP address and product price in US dollars.
+#df.describe() - setul contine 165474 de inregistrari(din luna aprilie pana in august)
+
+#eliminare randuri care contin null(nan)
+#df.dropna(axis =0, inplace=True)
+
+
+df.describe()
+
+df['categoriehaina']=df['page 1 (main category)']
+df["categoriehaina"]=df.apply(Haina,axis=1)
+df["Continent"]=df.apply(continent,axis=1)
+df["ziua achizitiei"]=df.apply(ziachizitie, axis=1)
+
+
+#nr de bucati/articole cumparate de clientela
+sns.countplot(x="categoriehaina", data = df)
+#plot bar pentru reprezentarea sumei pe categorii de haine
+df.groupby(['categoriehaina']).price.sum().sort_values(ascending = False).plot.bar()
+#countplot pe continent
+sns.countplot(x="Continent", data = df)
+#studiu achizitie pe zilele lunii(pana in 15 si dupa 15)
+sns.countplot(x="ziua achizitiei",data=df)
+#studiu pozitionare poza - en face si profil
+sns.countplot(x="model photography",data=df)
+#pe locatia pozei - suma obiectelor
+df.groupby(['location']).price.sum().sort_values(ascending = False).plot.bar()
+
+
+#plotbar pe tari - top10 si last 10
+df.groupby(['country']).price.sum().sort_values(ascending = False).head(10).plot.bar()
+
+df.groupby(['country']).price.sum().sort_values(ascending = False).tail(10).plot.bar()
+
+#plotbar pe modele  - top 10 si last 10
+df["page 2 (clothing model)"].value_counts().sort_values(ascending = False).head(10).plot.bar()
+
+df["page 2 (clothing model)"].value_counts().sort_values(ascending = False).tail(10).plot.bar()
+
+#plotbar pe culori  - top 5 si last 5
+df["colour"].value_counts().sort_values(ascending = False).head(5).plot.bar()
+
+df["colour"].value_counts().sort_values(ascending = False).tail(5).plot.bar()
+
+
+
+df["order"].describe()
+# - o medie de 9.81 clickuri/comanda - minim 1 click, maxim 195
+
+
+#plotbar pentru a vedea suma pe luni/ in ce luna s-au realizat cele mai mari vanzari
+df.groupby(['month']).price.sum().sort_values(ascending = False).plot.bar()
+
+#dummy_df = pd.get_dummies(df['page 2 (clothing model)'])
+
+#df6=df.groupby("order").agg('mean')
+#medie nr de click-uri per comanda per categorie
+df.groupby(['categoriehaina']).order.sum().sort_values(ascending = False).plot.bar()
+
+#corelatii
+df2=pd.crosstab(df["order"], df["categoriehaina"])
+sns.heatmap(data=df2.corr(), annot=True)
+
+df3=pd.crosstab(df["price"], df["categoriehaina"])
+sns.heatmap(data=df3.corr(), annot=True)
+
+df4=pd.crosstab(df["price"], df["location"])
+sns.heatmap(data=df4.corr(), annot=True)
+
+df5=pd.crosstab(df["order"], df["page"])
+sns.heatmap(data=df5.corr(), annot=True)
+
+df6=pd.crosstab(df["price"], df["page"])
+sns.heatmap(data=df6.corr(), annot=True)
+
+x_cols=['location', 'page', 'page 1 (main category)', 'order']
+X=df[x_cols]
+y=df["price"]
+
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.3,random_state=100)
+
+model_LR= LinearRegression()
+model_LR.fit(X_train,y_train)
+
+y_prezis=model_LR.predict(X_test)
+print("r^2=", r2_score(y_test,y_prezis))
+
+model_Ridge= Ridge(alpha=1)
+model_Ridge.fit(X_train,y_train)
+
+y_prezis_Ridge=model_Ridge.predict(X_test)
+print("r^2 _ alpha=1", r2_score(y_test,y_prezis))
+#model_LR.coef_
+#-------
+
+model_Ridge= Ridge(alpha=50)
+model_Ridge.fit(X_train,y_train)
+
+y_prezis_Ridge=model_Ridge.predict(X_test)
+print("r^2 _ alpha=50", r2_score(y_test,y_prezis))
+#model_Ridge.coef_
+
+model_Lasso= Lasso(alpha=0.1)
+model_Lasso.fit(X_train,y_train)
+
+y_prezis_Lasso=model_Lasso.predict(X_test)
+print("r^2 _ alpha=1", r2_score(y_test,y_prezis))
+print(model_Lasso.coef_)
+
+model_EN=ElasticNet(alpha=10,l1_ratio=0.5)
+model_EN.fit(X_train,y_train)
+
+y_prezis_EN=model_EN.predict(X_test)
+print("r^2 _ alpha =1:", r2_score(y_test,y_prezis_EN))
+print(model_EN.coef_)
+
+
+dffiltre = df[["location","page","page 1 (main category)","price","order"]]
+dfcorr=dffiltre.corr()
+sns.pairplot(dfcorr)    
+sns.heatmap(data=dffiltre.corr(),annot=True,cmap="YlGnBu", cbar=False)
+
+dffiltre1 = df[["location","page 1 (main category)","price"]]
+dfcorr1=dffiltre1.corr()
+sns.pairplot(dfcorr1)    
+sns.heatmap(data=dffiltre1.corr(),annot=True,cmap="YlGnBu", cbar=False)
+
+df["price"].median()
+df["order"].median()
+
+
+
+
+
+
+
+
+
